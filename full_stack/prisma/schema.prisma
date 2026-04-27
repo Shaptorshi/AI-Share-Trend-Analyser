@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+
+  stock      Stock[]
+  watchLists WatchList[]
+  analysis   Analysis[]
+}
+
+model Stock {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  symbol String @db.VarChar(10)
+  name   String @db.VarChar(100)
+
+  sentiment  Sentiment
+  confidence Float
+
+  predictedPrice  Float
+  predictedChange Float
+
+  summary String @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([symbol])
+}
+
+enum Sentiment {
+  Bullish
+  Bearish
+  Neutral
+}
+
+model Analysis {
+  id     String @id
+  userId String
+
+  user      User      @relation(fields: [userId], references: [id])
+  sentiment Sentiment
+  confidence Float
+  symbol String
+  
+  predictedPrice Float
+  predictedChange Float
+
+  rsi Float
+  macd String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([symbol])
+}
+
+model WatchList {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  symbol String @db.VarChar(10)
+  name   String @db.VarChar(100)
+  sector String @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, symbol])
+}
