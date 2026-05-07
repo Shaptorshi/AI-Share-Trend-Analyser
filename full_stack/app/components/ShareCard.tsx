@@ -1,88 +1,137 @@
 "use client"
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 import Marquee from "react-fast-marquee"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { TrendingUp, TrendingDown } from "lucide-react"
+import { getStock } from '@/lib/data'
 
-const content = [
-  {
-    title: "Infosys",
-    symbol: "INFY",
-    sector: "IT Services • NSE",
-    price: "1,305.20",
-    change: "+2.13%",
-    desc: "Leading IT services company specializing in AI, cloud and digital transformation.",
-  },
-  {
-    title: "HDFC Bank",
-    symbol: "HDFCBANK",
-    sector: "Private Bank • NSE",
-    price: "808.85",
-    change: "+2.17%",
-    desc: "India's largest private bank with strong retail and loan growth.",
-  },
-  {
-    title: "Reliance Industries",
-    symbol: "RELIANCE",
-    sector: "Energy • Telecom • Retail",
-    price: "2,950.00",
-    change: "+1.25%",
-    desc: "India's largest company with strong growth in Jio, retail, and energy sectors.",
-  },
-  {
-    title: "Tata Consultancy",
-    symbol: "TCS",
-    sector: "IT Services • NSE",
-    price: "3,850.00",
-    change: "+0.85%",
-    desc: "Global IT leader with strong AI, cloud, and enterprise solutions growth.",
-  },
-  {
-    title: "Bharti Airtel",
-    symbol: "AIRTEL",
-    sector: "Telecom • NSE",
-    price: "1,320.00",
-    change: "-0.42%",
-    desc: "Leading telecom provider with strong 5G expansion and digital services growth.",
-  },
-  {
-    title: "Wipro",
-    symbol: "WIPRO",
-    sector: "IT Services • NSE",
-    price: "412.30",
-    change: "-0.31%",
-    desc: "Global IT and consulting services with growing cloud capabilities.",
-  },
-  {
-    title: "Bajaj Finance",
-    symbol: "BAJFINANCE",
-    sector: "NBFC • NSE",
-    price: "7,210.00",
-    change: "+1.54%",
-    desc: "India's leading NBFC with strong consumer and SME lending growth.",
-  },
-  {
-    title: "Bajaj Finance",
-    symbol: "BAJFINANCE",
-    sector: "NBFC • NSE",
-    price: "7,210.00",
-    change: "+1.54%",
-    desc: "India's leading NBFC with strong consumer and SME lending growth.",
-  },
-  {
-    title: "Bajaj Finance",
-    symbol: "BAJFINANCE",
-    sector: "NBFC • NSE",
-    price: "7,210.00",
-    change: "+1.54%",
-    desc: "India's leading NBFC with strong consumer and SME lending growth.",
-  },
+// const content = [
+//   {
+//     title: "Infosys",
+//     symbol: "INFY",
+//     sector: "IT Services • NSE",
+//     price: "1,305.20",
+//     change: "+2.13%",
+//     desc: "Leading IT services company specializing in AI, cloud and digital transformation.",
+//   },
+//   {
+//     title: "HDFC Bank",
+//     symbol: "HDFCBANK",
+//     sector: "Private Bank • NSE",
+//     price: "808.85",
+//     change: "+2.17%",
+//     desc: "India's largest private bank with strong retail and loan growth.",
+//   },
+//   {
+//     title: "Reliance Industries",
+//     symbol: "RELIANCE",
+//     sector: "Energy • Telecom • Retail",
+//     price: "2,950.00",
+//     change: "+1.25%",
+//     desc: "India's largest company with strong growth in Jio, retail, and energy sectors.",
+//   },
+//   {
+//     title: "Tata Consultancy",
+//     symbol: "TCS",
+//     sector: "IT Services • NSE",
+//     price: "3,850.00",
+//     change: "+0.85%",
+//     desc: "Global IT leader with strong AI, cloud, and enterprise solutions growth.",
+//   },
+//   {
+//     title: "Bharti Airtel",
+//     symbol: "AIRTEL",
+//     sector: "Telecom • NSE",
+//     price: "1,320.00",
+//     change: "-0.42%",
+//     desc: "Leading telecom provider with strong 5G expansion and digital services growth.",
+//   },
+//   {
+//     title: "Wipro",
+//     symbol: "WIPRO",
+//     sector: "IT Services • NSE",
+//     price: "412.30",
+//     change: "-0.31%",
+//     desc: "Global IT and consulting services with growing cloud capabilities.",
+//   },
+//   {
+//     title: "Bajaj Finance",
+//     symbol: "BAJFINANCE",
+//     sector: "NBFC • NSE",
+//     price: "7,210.00",
+//     change: "+1.54%",
+//     desc: "India's leading NBFC with strong consumer and SME lending growth.",
+//   },
+//   {
+//     title: "Bajaj Finance",
+//     symbol: "BAJFINANCE",
+//     sector: "NBFC • NSE",
+//     price: "7,210.00",
+//     change: "+1.54%",
+//     desc: "India's leading NBFC with strong consumer and SME lending growth.",
+//   },
+//   {
+//     title: "Bajaj Finance",
+//     symbol: "BAJFINANCE",
+//     sector: "NBFC • NSE",
+//     price: "7,210.00",
+//     change: "+1.54%",
+//     desc: "India's leading NBFC with strong consumer and SME lending growth.",
+//   },
+// ]
+
+const symbols = [
+  "RELIANCE.NS",
+  "INFY.NS",
+  "WIPRO.NS",
+  "HDFCBANK.NS",
+  "TCS.NS"
 ]
 
+type StockCard = {
+  title: string,
+  symbol: string,
+  sector: string,
+  price: string,
+  change: string,
+  desc: string,
+
+}
 const ShareCard = () => {
+  const [content, setContent] = useState<StockCard[]>([])
+  useEffect(() => {
+    const fetchStocks = async () => {
+      try {
+        const results = await Promise.all(
+          symbols.map((symbol) => getStock(symbol))
+        )
+
+        const formatted = results.map((data) => {
+          const price = data.price || 0
+          const prev = data.previous_close || price
+
+          const change = ((price - prev) / prev) * 100
+
+          return {
+            title: data.name || data.symbol,
+            symbol: data.symbol,
+            sector: "NSE",
+            price: price.toFixed(2),
+            change: `${change >= 0 ? "+" : "-"}${change.toFixed(2)}`,
+            desc: `AI-Powered Stock Insights`
+          }
+        })
+
+        setContent(formatted)
+      } catch (error) {
+        console.error(error)
+      }
+    }
+    fetchStocks()
+  }, [])
   return (
     <div className="w-full py-15">
       <Marquee

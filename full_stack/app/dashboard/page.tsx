@@ -11,20 +11,22 @@ import WatchList from './components/WatchList'
 
 const page = () => {
   return (
-    <div className='border h-screen p-5 m-5 rounded-xl bg-muted/30'>
+    <div className='border h-screen p-5 m-5 rounded-2xl bg-background/50 backdrop-blur-xl shadow-sm overflow-y-auto space-y-6'>
       <div className=''>
         <StatCards />
-        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-          <div className='lg:col-span-2'>
+        <div className='grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6'>
+          <div className='lg:col-span-2 flex flex-col h-full'>
             <PriceChart />
           </div>
-          <div>
+          <div className='flex flex-col gap-6 h-full'>
             <StockDetails />
             <AIPredictionCard />
           </div>
         </div>
-        <WatchList />
-        <News />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="col-span-2"><WatchList /></div>
+            <div><News /></div>
+        </div>
       </div>
     </div>
   )
