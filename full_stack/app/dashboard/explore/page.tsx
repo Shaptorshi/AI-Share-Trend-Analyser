@@ -1,154 +1,260 @@
 "use client"
 
+import {useMemo} from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useState } from 'react'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { useState, useEffect } from 'react'
+import { TrendingUp, TrendingDown, Zap, ArrowRight, Flame, BarChart3 } from 'lucide-react'
+import { fetchBatchStocks, StockInfo } from '@/lib/api'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Button } from '@/components/ui/button'
+import StockSearchAutocomplete from '@/app/components/StockSearchAutocomplete'
+import { useRouter } from 'next/navigation'
 
 type Sector = "IT" | "Banking" | "Energy" | "Pharma" | "FMCG"
-const page = () => {
-  const [sector, setSector] = useState<Sector>("IT")
-  const gainers = [
-    { name: "TCS", price: "₹3,200", change: "+2.4%" },
-    { name: "INFY", price: "₹1,450", change: "+1.8%" },
-  ]
-  const losers = [
-    { name: "HDFC", price: "₹784.00", change: "-1.99%" },
-    { name: "ITC", price: "₹305.25", change: "-0.08%" },
-  ]
-  const active = [
-    { name: "SBIN", price: "₹1,087.70", change: "+0.5%" },
-    { name: "ICICI", price: "₹950", change: "+0.9%" },
-    { name: "HCL", price: "₹1200", change: "-0.3%" },
-  ]
 
-  const sectorStocks: Record<Sector, { name: string, price: string, change: string }[]> = {
-    IT: [
-      { name: "TCS", price: "₹2,531.70", change: "-0.27%" },
-      { name: "INFY", price: "₹1,247.50", change: "-1.66%" },
-    ],
-    Banking: [
-      { name: "HDFC", price: "₹784.00", change: "-1.99%" },
-      { name: "SBIN", price: "₹1,087.70", change: "+0.5%" },
-      { name: "ICICI", price: "₹1,349.50", change: "-1.32%" },
-    ],
-    Energy: [
-      { name: "NTPC", price: '₹403.90', change: '-1.50%' },
-      { name: 'ONGC', price: '₹286.40', change: '+2.75%' },
-      { name: 'TATAPOWER', price: '₹429.90', change: '-1.41%' },
-    ],
-    Pharma: [
-      { name: 'APOLLOHOSP', price: '₹7,779.50', change: '+1.53%' },
-      { name: 'SUNPHARMA', price: '₹1,701.60', change: '+1.90%' }
-    ],
-    FMCG: [
-      { name: 'ITC', price: '₹305.25', change: '-0.08%' },
-      { name: 'HINDUNILVR', price: '₹2,378.30', change: '+0.40%' },
-      { name: 'NESTLEIND', price: '₹1,412.90', change: '+1.23%' }
-    ]
-  }
+const SECTOR_SYMBOLS: Record<Sector, string[]> = {
+  IT: ["TCS.NS", "INFY.NS", "WIPRO.NS", "HCLTECH.NS", "TECHM.NS"],
+  Banking: ["HDFCBANK.NS", "SBIN.NS", "ICICIBANK.NS", "KOTAKBANK.NS", "AXISBANK.NS"],
+  Energy: ["RELIANCE.NS", "NTPC.NS", "ONGC.NS", "TATAPOWER.NS", "ADANIENT.NS"],
+  Pharma: ["SUNPHARMA.NS", "DRREDDY.NS", "CIPLA.NS", "APOLLOHOSP.NS", "DIVISLAB.NS"],
+  FMCG: ["ITC.NS", "HINDUNILVR.NS", "NESTLEIND.NS", "BRITANNIA.NS", "DABUR.NS"],
+}
+
+const OVERVIEW_SYMBOLS = [
+  "TCS.NS", "INFY.NS", "HDFCBANK.NS", "RELIANCE.NS", "SBIN.NS",
+  "ITC.NS", "WIPRO.NS", "BHARTIARTL.NS", "ICICIBANK.NS", "SUNPHARMA.NS",
+  "NTPC.NS", "ONGC.NS",
+]
+
+function StockRow({ info, onClick }: { info: StockInfo; onClick: () => void }) {
+  const price = info.price || 0
+  const prev = info.previous_close || price
+  const change = prev ? ((price - prev) / prev) * 100 : 0
+  const positive = change >= 0
+
   return (
-    <div className='border h-screen p-5 m-5 rounded-xl space-y-4'>
-      <Input placeholder='Search stocks...' />
-      <Tabs defaultValue='gainers'>
-        <TabsList>
-          <TabsTrigger value='gainers'>Top Gainers</TabsTrigger>
-          <TabsTrigger value='losers'>Top Losers</TabsTrigger>
-          <TabsTrigger value='active'>Most Active</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value='gainers'>
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 auto-rows-fr'>
-            {gainers.map((stock, idx) => (
-              <Card key={idx} className='p-4 flex flex-col justify-between h-full'>
-                <div className='flex justify-between'>
-                  <span className='font-bold'>{stock.name}</span>
-                  <Badge className='bg-green-500'>{stock.change}</Badge>
-                </div>
-                <div className='text-lg font-bold'>{stock.price}</div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value='losers'>
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 auto-rows-fr'>
-            {losers.map((stock, idx) => (
-              <Card key={idx} className='p-4 flex flex-col justify-between h-full'>
-                <div className='flex justify-between'>
-                  <span className='font-bold'>{stock.name}</span>
-                  <Badge className={stock.change.startsWith("+") ? 'bg-green-500' : 'bg-red-500'}>{stock.change}</Badge>
-                </div>
-                <div className='text-lg font-bold'>{stock.price}</div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value='active'>
-          <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 auto-rows-fr'>
-            {active.map((stock, idx) => (
-              <Card key={idx} className='p-4 flex flex-col justify-between h-full'>
-                <div className='flex justify-between'>
-                  <span className='font-bold'>{stock.name}</span>
-                  <Badge className={stock.change.startsWith('+') ? 'bg-green-500' : 'bg-red-500'}>{stock.change}</Badge>
-                </div>
-                <div className='text-lg font-bold'>{stock.price}</div>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-      <div className='space-y-3 mt-6'>
-        <h2 className='font-bold'>Market Insights</h2>
-        <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-          <Card className='p-4'>
-            <div className='text-sm text-muted-foreground'>Trend</div>
-            <div className='font-bold'>Bullish</div>
-          </Card>
-          <Card className='p-4'>
-            <div className='text-sm text-muted-foreground'>Top Sector</div>
-            <div className='font-bold'>Services</div>
-          </Card>
-          <Card className='p-4'>
-            <div className='text-sm text-muted-foreground'>Market Mood</div>
-            <div className='font-bold'>Positive</div>
-          </Card>
+    <div
+      onClick={onClick}
+      className="flex items-center justify-between p-4 rounded-xl border border-muted/40 bg-card/50 backdrop-blur-sm hover:shadow-md hover:scale-[1.01] hover:border-primary/20 transition-all duration-300 cursor-pointer group"
+    >
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold font-mono ${positive ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-500'}`}>
+          {info.symbol.replace(".NS", "").substring(0, 3)}
+        </div>
+        <div>
+          <p className="font-mono text-sm font-bold">{info.symbol.replace(".NS", "")}</p>
+          <p className="text-[11px] text-muted-foreground truncate max-w-[140px]">{info.name || info.symbol}</p>
         </div>
       </div>
-      <div className='mt-6 space-y-3'>
-        <h3 className='font-bold'>Browse by Sector</h3>
-        <div className='flex gap-2'>
-          <Badge variant={`outline`} className='cursor-pointer hover:bg-gray-200' onClick={() => setSector("IT")}>IT</Badge>
-          <Badge variant={`outline`} className='cursor-pointer hover:bg-gray-200' onClick={() => setSector("Banking")}>Banking</Badge>
-          <Badge variant={`outline`} className='cursor-pointer hover:bg-gray-200' onClick={() => setSector("Energy")}>Energy</Badge>
-          <Badge variant={`outline`} className='cursor-pointer hover:bg-gray-200' onClick={() => setSector("Pharma")}>Pharma</Badge>
-          <Badge variant={`outline`} className='cursor-pointer hover:bg-gray-200' onClick={() => setSector("FMCG")}>FMCG</Badge>
-        </div>
-      </div>
-      <div className='mt-6 space-y-3'>
-        <h3 className='font-bold'>Top Stocks in {sector}</h3>
-        <ScrollArea className='h-80 w-full rounded-md border p-4'>
-          <div className='space-y-3'>
-            {sectorStocks[sector].map((stock, idx) => (
-              <Card key={idx} className='p-4 cursor-pointer hover:shadow-md transition border rounded-md'>
-                <div className='flex justify-between'>
-                  <span className='font-bold'>{stock.name}</span>
-                  <Badge className={stock.change.startsWith('+') ? 'bg-green-500' : 'bg-red-500'}>
-                    {stock.change}
-                  </Badge>
-                </div>
 
-                <div className='text-lg font-bold mt-1'>{stock.price}</div>
-                <div className='text-xs text-muted-foreground'>Strong Momentum</div>
-              </Card>
-            ))}
-          </div>
-        </ScrollArea>
+      <div className="flex items-center gap-4">
+        <div className="text-right">
+          <p className="font-mono text-sm font-bold">₹{price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</p>
+          <p className={`text-xs font-medium flex items-center gap-0.5 justify-end ${positive ? 'text-green-600' : 'text-red-500'}`}>
+            {positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+            {positive ? "+" : ""}{change.toFixed(2)}%
+          </p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
     </div>
   )
 }
 
-export default page
+function StockRowSkeleton() {
+  return (
+    <div className="flex items-center justify-between p-4 rounded-xl border border-muted/40">
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-10 h-10 rounded-lg" />
+        <div className="space-y-1.5">
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-3 w-24" />
+        </div>
+      </div>
+      <div className="space-y-1.5 text-right">
+        <Skeleton className="h-4 w-20 ml-auto" />
+        <Skeleton className="h-3 w-12 ml-auto" />
+      </div>
+    </div>
+  )
+}
+
+export default function ExplorePage() {
+  const router = useRouter()
+  const [sector, setSector] = useState<Sector>("IT")
+  const [overviewData, setOverviewData] = useState<StockInfo[]>([])
+  const [sectorData, setSectorData] = useState<StockInfo[]>([])
+  const [loadingOverview, setLoadingOverview] = useState(true)
+  const [loadingSector, setLoadingSector] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoadingOverview(true)
+        const data = await fetchBatchStocks(OVERVIEW_SYMBOLS)
+        if (Array.isArray(data)) {
+          setOverviewData(data)
+        }
+      } catch (err) {
+        console.error("Explore page overview load error:", err)
+      } finally {
+        setLoadingOverview(false)
+      }
+    }
+    load()
+  }, [])
+
+  useEffect(() => {
+    async function loadSector() {
+      try {
+        setLoadingSector(true)
+        const data = await fetchBatchStocks(SECTOR_SYMBOLS[sector])
+        if (Array.isArray(data)) {
+          setSectorData(data)
+        }
+      } catch (err) {
+        console.error("Explore page sector load error:", err)
+      } finally {
+        setLoadingSector(false)
+      }
+    }
+    loadSector()
+  }, [sector])
+
+  const navigateToStock = (symbol: string) => {
+    router.push(`/dashboard/stock/${encodeURIComponent(symbol)}`)
+  }
+
+  // Separate overview data into gainers and losers
+  const sorted = useMemo(() => {
+    if (!Array.isArray(overviewData)) return []
+    return [...overviewData]
+      .filter(s => s.price && s.previous_close)
+      .map(s => ({ ...s, changePct: ((s.price! - s.previous_close!) / s.previous_close!) * 100 }))
+      .sort((a, b) => b.changePct - a.changePct)
+  }, [overviewData])
+
+  const gainers = sorted.filter(s => s.changePct > 0).slice(0, 6)
+  const losers = sorted.filter(s => s.changePct < 0).slice(0, 6)
+  const mostActive = [...overviewData].filter(s => s.market_cap).sort((a, b) => (b.market_cap || 0) - (a.market_cap || 0)).slice(0, 6)
+
+  return (
+    <div className='border h-screen p-6 m-5 rounded-2xl bg-background/50 backdrop-blur-xl shadow-sm overflow-y-auto space-y-8'>
+
+      {/* Header + Search */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Explore Stocks</h1>
+          <p className="text-sm text-muted-foreground mt-1">Discover trending stocks, sectors, and market movers</p>
+        </div>
+        <StockSearchAutocomplete
+          className="w-full md:w-96"
+          placeholder="Search any stock globally..."
+          onSelect={(result) => navigateToStock(result.symbol)}
+        />
+      </div>
+
+      {/* Market Insights */}
+      <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+        <Card className="bg-gradient-to-br from-green-500/5 to-transparent border-muted/50 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+          <CardContent className='p-5 flex items-center gap-4'>
+            <div className="w-11 h-11 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <TrendingUp className="text-green-600 w-5 h-5" />
+            </div>
+            <div>
+              <p className='text-[10px] uppercase tracking-wider font-semibold text-muted-foreground'>Market Trend</p>
+              <p className='text-lg font-bold text-green-600 mt-0.5'>Bullish</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-blue-500/5 to-transparent border-muted/50 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+          <CardContent className='p-5 flex items-center gap-4'>
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center">
+              <BarChart3 className="text-blue-600 w-5 h-5" />
+            </div>
+            <div>
+              <p className='text-[10px] uppercase tracking-wider font-semibold text-muted-foreground'>Top Sector</p>
+              <p className='text-lg font-bold mt-0.5'>IT Services</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-gradient-to-br from-amber-500/5 to-transparent border-muted/50 shadow-sm hover:shadow-md transition-all hover:-translate-y-1">
+          <CardContent className='p-5 flex items-center gap-4'>
+            <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
+              <Flame className="text-amber-600 w-5 h-5" />
+            </div>
+            <div>
+              <p className='text-[10px] uppercase tracking-wider font-semibold text-muted-foreground'>Market Mood</p>
+              <p className='text-lg font-bold text-amber-600 mt-0.5'>Positive</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs — Gainers / Losers / Active */}
+      <Tabs defaultValue='gainers'>
+        <TabsList className="bg-muted/50">
+          <TabsTrigger value='gainers' className="gap-1.5 data-[state=active]:bg-green-500/10 data-[state=active]:text-green-700">
+            <TrendingUp className="w-3.5 h-3.5" /> Top Gainers
+          </TabsTrigger>
+          <TabsTrigger value='losers' className="gap-1.5 data-[state=active]:bg-red-500/10 data-[state=active]:text-red-600">
+            <TrendingDown className="w-3.5 h-3.5" /> Top Losers
+          </TabsTrigger>
+          <TabsTrigger value='active' className="gap-1.5 data-[state=active]:bg-blue-500/10 data-[state=active]:text-blue-600">
+            <Zap className="w-3.5 h-3.5" /> Most Active
+          </TabsTrigger>
+        </TabsList>
+
+        {["gainers", "losers", "active"].map((tab) => {
+          const data = tab === "gainers" ? gainers : tab === "losers" ? losers : mostActive
+          return (
+            <TabsContent key={tab} value={tab}>
+              <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-4'>
+                {loadingOverview
+                  ? Array.from({ length: 6 }).map((_, i) => <StockRowSkeleton key={i} />)
+                  : data.map((stock, idx) => (
+                    <StockRow key={idx} info={stock} onClick={() => navigateToStock(stock.symbol)} />
+                  ))
+                }
+                {!loadingOverview && data.length === 0 && (
+                  <p className="col-span-full text-center text-muted-foreground py-8">No data available for this category.</p>
+                )}
+              </div>
+            </TabsContent>
+          )
+        })}
+      </Tabs>
+
+      {/* Browse by Sector */}
+      <div className='space-y-4'>
+        <div className="flex items-center justify-between">
+          <h2 className='font-bold text-xl tracking-tight'>Browse by Sector</h2>
+        </div>
+        <div className='flex gap-2 flex-wrap'>
+          {(Object.keys(SECTOR_SYMBOLS) as Sector[]).map((s) => (
+            <Button
+              key={s}
+              variant={sector === s ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSector(s)}
+              className={`rounded-xl text-xs font-medium transition-all ${sector === s ? 'shadow-md' : 'border-muted/60 hover:border-primary/30'}`}
+            >
+              {s}
+            </Button>
+          ))}
+        </div>
+
+        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3'>
+          {loadingSector
+            ? Array.from({ length: 5 }).map((_, i) => <StockRowSkeleton key={i} />)
+            : sectorData.map((stock, idx) => (
+              <StockRow key={idx} info={stock} onClick={() => navigateToStock(stock.symbol)} />
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  )
+}

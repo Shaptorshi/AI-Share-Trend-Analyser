@@ -1,7 +1,6 @@
 "use client"
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Avatar, AvatarBadge, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -9,39 +8,40 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel
 } from '@/components/ui/dropdown-menu'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { Search } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
+import StockSearchAutocomplete from './StockSearchAutocomplete'
+import LivePriceTicker from './LivePriceTicker'
+import { useRouter } from 'next/navigation'
 
 const LoggedNavbar = () => {
-
   const { data: session } = useSession()
+  const router = useRouter()
+  const tickerSymbols = useMemo(() => ["RELIANCE.NS", "TCS.NS", "HDFCBANK.NS"], [])
+
   return (
     <div>
       <div className='flex items-center justify-between border-b bg-background px-6 h-17.25'>
 
-        {/* LEFT */}
+        {/* LEFT — Search */}
         <div className='flex items-center gap-6'>
-          <InputGroup className='w-80'>
-            <InputGroupInput placeholder='Search stocks...' />
-            <InputGroupAddon>
-              <Search className='w-4 h-4' />
-            </InputGroupAddon>
-            <Button>Search</Button>
-          </InputGroup>
+          <StockSearchAutocomplete
+            className="w-96"
+            placeholder="Search stocks — AAPL, TCS, RELIANCE..."
+            onSelect={(result) => {
+              // Navigate to explore page or stock detail when selected
+              router.push(`/dashboard/explore?symbol=${result.symbol}`)
+            }}
+          />
+        </div>
+
+        {/* CENTER — Live Prices */}
+        <div className='hidden lg:flex items-center'>
+          <LivePriceTicker symbols={tickerSymbols} />
         </div>
 
         {/* RIGHT */}
         <div className='flex items-center gap-6'>
-
-          {/* STOCK INFO */}
-          <div className='text-sm hidden md:flex items-center'>
-            <span className='font-bold'>RELIANCE.NS</span>
-            <span className='ml-2 text-green-500'>+1.25%</span>
-          </div>
-
           {/* AVATAR */}
-        
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Avatar className='cursor-pointer'>

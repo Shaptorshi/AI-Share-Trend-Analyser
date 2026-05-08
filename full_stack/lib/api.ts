@@ -53,3 +53,24 @@ export const fetchStockHistory = async (symbol: string): Promise<StockHistoryDat
         return [];
     }
 };
+
+export interface SearchResult {
+    symbol: string;
+    name: string;
+    exchange: string;
+    type: string;
+    sector: string;
+    industry: string;
+}
+
+export const fetchStockSearch = async (query: string): Promise<SearchResult[]> => {
+    if (!query || query.trim().length < 1) return [];
+    try {
+        const res = await fetch(`${API_BASE_URL}/stocks/search?q=${encodeURIComponent(query)}`);
+        if (!res.ok) throw new Error("Failed to search stocks");
+        return res.json();
+    } catch (error) {
+        console.error(error);
+        return [];
+    }
+};

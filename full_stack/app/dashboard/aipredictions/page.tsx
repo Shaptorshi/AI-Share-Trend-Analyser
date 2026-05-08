@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Brain, Search, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Brain, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
+import StockSearchAutocomplete from '@/app/components/StockSearchAutocomplete'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -95,19 +95,14 @@ const AIPredictionsPage = () => {
            <h1 className="text-2xl font-bold tracking-tight">AI Predictions</h1>
            <p className="text-muted-foreground text-sm">Advanced machine learning forecasts</p>
         </div>
-        <div className="flex items-center gap-3 bg-card p-2 rounded-xl shadow-sm border border-muted/60 w-full md:w-auto">
-          <Search className="text-muted-foreground ml-2 h-4 w-4" />
-          <Input placeholder="Analyze a new stock..." className="border-0 shadow-none focus-visible:ring-0 bg-transparent min-w-[200px]" />
-          <Button onClick={() => setLoading(!loading)} className="rounded-lg shadow-sm">
-            {loading ? (
-              <Loader2 className="animate-spin w-4 h-4" />
-            ) : (
-              <>
-                <Brain className="mr-2 w-4 h-4" />
-                Analyze
-              </>
-            )}
-          </Button>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <StockSearchAutocomplete
+            className="min-w-[320px]"
+            placeholder="Search & analyze a stock..."
+            onSelect={(result) => {
+              console.log('Analyze:', result.symbol)
+            }}
+          />
         </div>
       </div>
 

@@ -6,195 +6,123 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { TrendingUp, TrendingDown } from "lucide-react"
-import { getStock } from '@/lib/data'
-
-// const content = [
-//   {
-//     title: "Infosys",
-//     symbol: "INFY",
-//     sector: "IT Services • NSE",
-//     price: "1,305.20",
-//     change: "+2.13%",
-//     desc: "Leading IT services company specializing in AI, cloud and digital transformation.",
-//   },
-//   {
-//     title: "HDFC Bank",
-//     symbol: "HDFCBANK",
-//     sector: "Private Bank • NSE",
-//     price: "808.85",
-//     change: "+2.17%",
-//     desc: "India's largest private bank with strong retail and loan growth.",
-//   },
-//   {
-//     title: "Reliance Industries",
-//     symbol: "RELIANCE",
-//     sector: "Energy • Telecom • Retail",
-//     price: "2,950.00",
-//     change: "+1.25%",
-//     desc: "India's largest company with strong growth in Jio, retail, and energy sectors.",
-//   },
-//   {
-//     title: "Tata Consultancy",
-//     symbol: "TCS",
-//     sector: "IT Services • NSE",
-//     price: "3,850.00",
-//     change: "+0.85%",
-//     desc: "Global IT leader with strong AI, cloud, and enterprise solutions growth.",
-//   },
-//   {
-//     title: "Bharti Airtel",
-//     symbol: "AIRTEL",
-//     sector: "Telecom • NSE",
-//     price: "1,320.00",
-//     change: "-0.42%",
-//     desc: "Leading telecom provider with strong 5G expansion and digital services growth.",
-//   },
-//   {
-//     title: "Wipro",
-//     symbol: "WIPRO",
-//     sector: "IT Services • NSE",
-//     price: "412.30",
-//     change: "-0.31%",
-//     desc: "Global IT and consulting services with growing cloud capabilities.",
-//   },
-//   {
-//     title: "Bajaj Finance",
-//     symbol: "BAJFINANCE",
-//     sector: "NBFC • NSE",
-//     price: "7,210.00",
-//     change: "+1.54%",
-//     desc: "India's leading NBFC with strong consumer and SME lending growth.",
-//   },
-//   {
-//     title: "Bajaj Finance",
-//     symbol: "BAJFINANCE",
-//     sector: "NBFC • NSE",
-//     price: "7,210.00",
-//     change: "+1.54%",
-//     desc: "India's leading NBFC with strong consumer and SME lending growth.",
-//   },
-//   {
-//     title: "Bajaj Finance",
-//     symbol: "BAJFINANCE",
-//     sector: "NBFC • NSE",
-//     price: "7,210.00",
-//     change: "+1.54%",
-//     desc: "India's leading NBFC with strong consumer and SME lending growth.",
-//   },
-// ]
+import { fetchBatchStocks, StockInfo } from '@/lib/api'
+import { Skeleton } from "@/components/ui/skeleton"
+import { useRouter } from "next/navigation"
 
 const symbols = [
   "RELIANCE.NS",
   "INFY.NS",
   "WIPRO.NS",
   "HDFCBANK.NS",
-  "TCS.NS"
+  "TCS.NS",
+  "BHARTIARTL.NS",
+  "ITC.NS"
 ]
 
-type StockCard = {
-  title: string,
-  symbol: string,
-  sector: string,
-  price: string,
-  change: string,
-  desc: string,
-
-}
 const ShareCard = () => {
-  const [content, setContent] = useState<StockCard[]>([])
+  const router = useRouter()
+  const [content, setContent] = useState<StockInfo[]>([])
+  const [loading, setLoading] = useState(true)
+
   useEffect(() => {
     const fetchStocks = async () => {
+      setLoading(true)
       try {
-        const results = await Promise.all(
-          symbols.map((symbol) => getStock(symbol))
-        )
-
-        const formatted = results.map((data) => {
-          const price = data.price || 0
-          const prev = data.previous_close || price
-
-          const change = ((price - prev) / prev) * 100
-
-          return {
-            title: data.name || data.symbol,
-            symbol: data.symbol,
-            sector: "NSE",
-            price: price.toFixed(2),
-            change: `${change >= 0 ? "+" : "-"}${change.toFixed(2)}`,
-            desc: `AI-Powered Stock Insights`
-          }
-        })
-
-        setContent(formatted)
+        const results = await fetchBatchStocks(symbols)
+        setContent(results)
       } catch (error) {
         console.error(error)
+      } finally {
+        setLoading(false)
       }
     }
     fetchStocks()
   }, [])
+
   return (
-    <div className="w-full py-15">
+    <div className="w-full py-15 bg-background overflow-hidden">
       <Marquee
-        gradient
-        gradientWidth={80}
-        speed={50}
+        gradient={false}
+        speed={40}
         pauseOnHover
       >
-        <div className="flex items-stretch gap-4 px-2">
-          {content.map((info, idx) => {
-            const isPositive = info.change.startsWith("+")
+        <div className="flex items-stretch gap-5 px-3 py-4">
+          {loading ? (
+             Array.from({length: 6}).map((_, i) => (
+                <Card key={i} className="w-64 shrink-0 p-5 border-muted/60 bg-card/50 backdrop-blur-sm shadow-sm">
+                   <div className="flex justify-between items-start mb-4">
+                      <div className="space-y-2">
+                         <Skeleton className="h-5 w-20" />
+                         <Skeleton className="h-3 w-28" />
+                      </div>
+                      <Skeleton className="h-4 w-10" />
+                   </div>
+                   <div className="space-y-2">
+                      <Skeleton className="h-6 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                   </div>
+                </Card>
+             ))
+          ) : content.map((info, idx) => {
+            const price = info.price || 0
+            const prev = info.previous_close || price
+            const change = prev ? ((price - prev) / prev) * 100 : 0
+            const isPositive = change >= 0
+
             return (
               <Card
                 key={idx}
-                className="w-55 shrink-0 p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-md border"
+                onClick={() => router.push(`/dashboard/stock/${encodeURIComponent(info.symbol)}`)}
+                className="w-64 shrink-0 p-5 transition-all duration-300 hover:-translate-y-2 hover:shadow-lg border-muted/60 bg-gradient-to-br from-card/80 to-muted/10 backdrop-blur-xl relative overflow-hidden group cursor-pointer"
               >
+                <div className={`absolute -right-10 -top-10 w-24 h-24 rounded-full blur-2xl opacity-20 group-hover:opacity-40 transition-opacity ${isPositive ? 'bg-green-500' : 'bg-red-500'}`} />
+                
                 {/* Symbol + sector badge */}
-                <div className="mb-3 flex items-start justify-between gap-2">
+                <div className="mb-4 flex items-start justify-between gap-2 relative z-10">
                   <div>
-                    <p className="font-mono text-xs font-semibold text-foreground">
-                      {info.symbol}
+                    <p className="font-mono text-sm font-bold text-foreground">
+                      {info.symbol.replace(".NS", "")}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {info.title}
+                    <p className="mt-0.5 text-[11px] text-muted-foreground truncate w-32" title={info.name || ""}>
+                      {info.name || info.symbol}
                     </p>
                   </div>
                   <Badge
-                    variant="outline"
-                    className="shrink-0 text-[10px] px-1.5 py-0.5 leading-tight"
+                    variant="secondary"
+                    className="shrink-0 text-[10px] px-1.5 py-0.5 bg-muted/50 text-muted-foreground"
                   >
                     NSE
                   </Badge>
                 </div>
 
                 {/* Price + change */}
-                <div className="mb-1 flex items-baseline gap-2">
-                  <span className="text-lg font-bold tracking-tight">
-                    ₹{info.price}
-                  </span>
+                <div className="mb-4 relative z-10">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-mono font-bold tracking-tight">
+                      ₹{price.toLocaleString("en-IN", {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                    </span>
+                  </div>
                   <span
-                    className={`flex items-center gap-0.5 text-xs font-medium ${isPositive ? "text-green-500" : "text-red-500"
-                      }`}
+                    className={`flex items-center gap-1 mt-1 text-xs font-medium ${isPositive ? "text-green-600 bg-green-500/10" : "text-red-500 bg-red-500/10"
+                      } w-fit px-2 py-0.5 rounded`}
                   >
                     {isPositive ? (
                       <TrendingUp className="h-3 w-3" />
                     ) : (
                       <TrendingDown className="h-3 w-3" />
                     )}
-                    {info.change}
+                    {isPositive ? "+" : ""}{change.toFixed(2)}%
                   </span>
                 </div>
 
-                {/* Sector */}
-                <p className="mb-2.5 text-[10px] text-muted-foreground">
-                  {info.sector}
-                </p>
-
-                <Separator className="mb-2.5" />
+                <Separator className="mb-3 opacity-60" />
 
                 {/* Description */}
-                <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
-                  {info.desc}
-                </p>
+                <div className="flex justify-between items-center text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                  <span>Vol: {(info.market_cap ? (info.market_cap / 1e5).toFixed(1) + 'L' : 'N/A')}</span>
+                  <span>AI: {isPositive ? "Bullish" : "Bearish"}</span>
+                </div>
               </Card>
             )
           })}

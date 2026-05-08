@@ -12,7 +12,7 @@ export default function Home() {
     <div id=''>
       <Navbar />
       <CTA />
-      {/* <ShareCard /> */}
+      <ShareCard />
       <Features />
       <Working />
       <Insights />
