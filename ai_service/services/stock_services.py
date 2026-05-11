@@ -13,11 +13,11 @@ def fetch_single_stock(symbol: str):
         try:
             fast = stock.fast_info
             fast_data = {
-                "price": fast.get("lastPrice"),
-                "market_cap": fast.get("marketCap"),
-                "high": fast.get("yearHigh"),
-                "low": fast.get("yearLow"),
-                "previous_close": fast.get("previousClose"),
+                "price": float(fast.get("lastPrice")) if fast.get("lastPrice") is not None else None,
+                "market_cap": float(fast.get("marketCap")) if fast.get("marketCap") is not None else None,
+                "high": float(fast.get("yearHigh")) if fast.get("yearHigh") is not None else None,
+                "low": float(fast.get("yearLow")) if fast.get("yearLow") is not None else None,
+                "previous_close": float(fast.get("previousClose")) if fast.get("previousClose") is not None else None,
             }
         except Exception:
             pass
@@ -28,7 +28,7 @@ def fetch_single_stock(symbol: str):
             info = stock.info
             info_data = {
                 "name": info.get("longName") or info.get("shortName"),
-                "pe_ratio": info.get("trailingPE"),
+                "pe_ratio": float(info.get("trailingPE")) if info.get("trailingPE") is not None else None,
             }
         except Exception:
             pass
@@ -75,19 +75,26 @@ def get_stock_history(symbol:str,period="1mo",interval="1d"):
         stock = yf.Ticker(symbol)
         hist = stock.history(period=period,interval=interval)
         
+        if hist.empty:
+            return []
+
         data = []
         for index,row in hist.iterrows():
+            # index is typically a Timestamp
+            # Format date as YYYY-MM-DD
+            date_str = index.strftime('%Y-%m-%d')
             data.append({
-                "date":str(index),
-                "open":row["Open"],
-                "high":row["High"],
-                "low":row["Low"],
-                "close":row["Close"],
-                "volume":row["Volume"],
+                "date": date_str,
+                "open": float(row["Open"]),
+                "high": float(row["High"]),
+                "low": float(row["Low"]),
+                "close": float(row["Close"]),
+                "volume": int(row["Volume"]),
             })
         
         return data
-    except Exception:
+    except Exception as e:
+        print(f"History fetch error for {symbol}: {e}")
         return []
 
 def search_stocks(query: str, max_results: int = 8):

@@ -235,7 +235,11 @@ export default function StockDetailPage() {
           <Button variant="outline" size="sm" className="gap-1.5 text-xs border-muted/60 hover:border-primary/30">
             <Bell className="w-3.5 h-3.5" /> Alert
           </Button>
-          <Button size="sm" className="gap-1.5 text-xs shadow-sm">
+          <Button 
+            size="sm" 
+            className="gap-1.5 text-xs shadow-sm"
+            onClick={() => router.push(`/dashboard/aipredictions?symbol=${symbol}`)}
+          >
             <Brain className="w-3.5 h-3.5" /> AI Analyze
           </Button>
         </div>
