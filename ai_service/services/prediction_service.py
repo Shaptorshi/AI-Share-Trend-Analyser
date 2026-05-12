@@ -23,6 +23,8 @@ class IndicatorResult(BaseModel):
     volume_ratio:float
 
 def calculate_rsi(prices:list[float],period:int=14):
+    if len(prices) < period + 1:
+        return 50.0
     deltas = [prices[i]-prices[i-1] for i in range(1,len(prices))]
     gains = [d if d > 0 else 0 for d in deltas[-period:]]
     losses = [-d if d < 0 else 0 for d in deltas[-period:]]
@@ -35,6 +37,8 @@ def calculate_rsi(prices:list[float],period:int=14):
     return round(100 - (100/(1+rs)),2)
 
 def calculate_ema(prices:list[float],period:int):
+    if not prices:
+        return 0.0
     k = 2 / (period + 1)
     ema = prices[0]
     for price in prices[1:]:
@@ -50,6 +54,9 @@ def calculate_macd(prices:list[float]):
     return macd, signal, round(macd - signal,2)
 
 def calculate_bollinger(prices:list[float],period:int=20):
+    if len(prices) < period:
+        avg = round(sum(prices)/len(prices),2) if prices else 0
+        return avg, avg, avg
     recent = prices[-period:]
     mid = round(sum(recent) / period,2)
     variance = sum((p-mid)**2 for p in recent) / period
@@ -57,10 +64,14 @@ def calculate_bollinger(prices:list[float],period:int=20):
     return round(mid + 2 * std, 2), mid, round(mid-2 * std, 2)
 
 def calculate_atr(prices:list[float],period:int):
+    if len(prices) < 2:
+        return 0.0
     trs = [abs(prices[i] - prices[i-1]) for i in range(1, len(prices))]
     return round(sum(trs[-period:]) / period, 2)
 
 def calculate_stochastic(prices:list[float],period:int):
+    if len(prices) < period:
+        return 50.0, 50.0
     recent = prices[-period:]
     low,high = min(recent),max(recent)
     

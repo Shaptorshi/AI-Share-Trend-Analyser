@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from services.prediction_service import PredictionInput,compute_indicators
 import ollama,json
 
-router = APIRouter(prefix="/api/predict",tags=["prediction"])
+router = APIRouter(prefix="/predict",tags=["prediction"])
 client = ollama.AsyncClient()
 
 PREDICTION_PROMPT = """
@@ -35,7 +35,7 @@ Return ONLY valid JSON with this exact structure:
 }}
 """
 
-@router.get("/")
+@router.post("/")
 async def predict(data:PredictionInput):
     indicators = compute_indicators(data)
     ind = indicators.model_dump()
@@ -84,6 +84,6 @@ async def predict_stream(data:PredictionInput):
         )
         
         async for chunk in stream:
-            yield f"data: {chunk["message"]["content"]}\n\n"
+            yield f"data: {chunk['message']['content']}\n\n"
         
     return StreamingResponse(gen(),media_type="text/event-stream")
