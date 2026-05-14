@@ -66,6 +66,7 @@ async def predict(data:PredictionInput):
             format="json"
         )
         prediction = json.loads(response["message"]["content"])
+        print(f"Ollama prediction: {prediction}")
     except Exception as e:
         print(f"Ollama connection failed: {e}. Using fallback mock prediction.")
         prediction = {
