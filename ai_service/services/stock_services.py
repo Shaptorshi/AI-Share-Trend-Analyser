@@ -23,6 +23,8 @@ def fetch_single_stock(symbol: str):
             pass
             
         # Try to get slow info for name/PE (with fallback)
+        prices_30d:[] # type: ignore
+        volumes_30d:[] # type: ignore
         info_data = {}
         try:
             info = stock.info
@@ -32,6 +34,26 @@ def fetch_single_stock(symbol: str):
             }
         except Exception:
             pass
+        
+        
+        try:
+            hist = stock.history(period="1mo", interval="1d")
+
+            if not hist.empty:
+                prices_30d = [
+                    float(close)
+                    for close in hist["Close"].tolist()
+                    if close is not None
+                ]
+
+                volumes_30d = [
+                    int(vol)
+                    for vol in hist["Volume"].tolist()
+                    if vol is not None
+                ]
+
+        except Exception as e:
+            print(f"History fetch error for {symbol}: {e}")
 
         return {
             "symbol": symbol.upper(),
@@ -42,7 +64,12 @@ def fetch_single_stock(symbol: str):
             "high": fast_data.get("high"),
             "low": fast_data.get("low"),
             "previous_close": fast_data.get("previous_close"),
+
+        #    30 days price and volume
+            "prices_30d": prices_30d,
+            "volumes_30d": volumes_30d,
         }
+        
     except Exception as e:
         return {
             "symbol": symbol.upper(),
@@ -53,7 +80,9 @@ def fetch_single_stock(symbol: str):
             "pe_ratio": None,
             "high": None,
             "low": None,
-            "previous_close": None
+            "previous_close": None,
+            "prices_30d":[],
+            "volumes_30d":[]
         }
 
 def get_stock_info(symbol:str):

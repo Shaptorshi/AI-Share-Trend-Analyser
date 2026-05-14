@@ -17,8 +17,8 @@ class IndicatorResult(BaseModel):
     bb_upper:float
     bb_mid:float
     bb_lower:float
-    stock_k:float
-    stock_d:float
+    stoch_k:float
+    stoch_d:float
     atr:float
     volume_ratio:float
 
@@ -63,13 +63,13 @@ def calculate_bollinger(prices:list[float],period:int=20):
     std = variance ** 0.5
     return round(mid + 2 * std, 2), mid, round(mid-2 * std, 2)
 
-def calculate_atr(prices:list[float],period:int):
+def calculate_atr(prices:list[float],period:int=14):
     if len(prices) < 2:
         return 0.0
     trs = [abs(prices[i] - prices[i-1]) for i in range(1, len(prices))]
     return round(sum(trs[-period:]) / period, 2)
 
-def calculate_stochastic(prices:list[float],period:int):
+def calculate_stochastic(prices:list[float],period:int=14):
     if len(prices) < period:
         return 50.0, 50.0
     recent = prices[-period:]
@@ -84,8 +84,8 @@ def compute_indicators(data:PredictionInput)->IndicatorResult:
     v = data.volumes_30d
     macd,signal,hist = calculate_macd(p)
     bb_u,bb_m,bb_l = calculate_bollinger(p)
-    stock_k,stock_d = calculate_stochastic(p)
-    avg_vol = sum(v) / len(v)
+    stoch_k,stoch_d = calculate_stochastic(p)
+    avg_vol = sum(v) / len(v) if len(v) > 0 else 1
     
     return IndicatorResult(
         rsi = calculate_rsi(p),
@@ -93,7 +93,7 @@ def compute_indicators(data:PredictionInput)->IndicatorResult:
         ema_50=calculate_ema(p,min(50,len(p))),
         ema_200=calculate_ema(p,min(200,len(p))),
         bb_upper=bb_u,bb_mid=bb_m,bb_lower=bb_l,
-        stock_k=stock_k,stock_d=stock_d,
+        stoch_k=stoch_k,stoch_d=stoch_d,
         atr = calculate_atr(p),
-        volume_ratio=round(v[-1] / avg_vol, 2)
+        volume_ratio=round(v[-1] / avg_vol, 2) if avg_vol!=0 and len(v)>0 else 0
     )

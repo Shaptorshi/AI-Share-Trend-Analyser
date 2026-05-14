@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Brain, TrendingUp, TrendingDown, Minus, Loader2 } from 'lucide-react'
 import StockSearchAutocomplete from '@/app/components/StockSearchAutocomplete'
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { fetchBatchStocks, StockInfo } from '@/lib/api'
 import { Skeleton } from '@/components/ui/skeleton'
-import {useRouter} from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 import { useSearchParams } from 'next/navigation'
 import { fetchStockInfo } from '@/lib/api'
@@ -57,7 +57,7 @@ export default function AIPredictionsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlSymbol = searchParams.get('symbol')
-
+  const initializedRef = useRef(false)
   const [loading, setLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(false)
   const [analysing, setAnalyzing] = useState(false)
@@ -81,10 +81,12 @@ export default function AIPredictionsPage() {
 
   // Handle URL symbol parameter
   useEffect(() => {
-    if (urlSymbol) {
-      handleNewSymbol(urlSymbol)
-    }
-  }, [urlSymbol])
+  if (!urlSymbol || initializedRef.current) return
+
+  initializedRef.current = true
+
+  handleNewSymbol(urlSymbol)
+}, [urlSymbol])
 
   async function handleNewSymbol(symbol: string) {
     // Check if we already have an analysis for this symbol
@@ -118,7 +120,7 @@ export default function AIPredictionsPage() {
         predictedPrice: info.price,
         currentPrice: info.price
       }
-      
+
       setAnalysis(prev => [placeholder, ...prev])
       setSelected(placeholder)
       setStockData(prev => ({ ...prev, [symbol]: info }))
@@ -135,6 +137,12 @@ export default function AIPredictionsPage() {
   async function triggerAnalysis(live: StockInfo) {
     setAnalyzing(true)
     try {
+      console.log({
+        symbol:live.symbol,
+        currentPrice:live.price,
+        price_30d:live.prices_30d,
+        volumes_30d:live.volumes_30d
+      })
       const res = await fetch('/api/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -145,6 +153,12 @@ export default function AIPredictionsPage() {
           volumes_30d: live.volumes_30d,
         }),
       })
+
+      if (!res.ok) {
+        const text = await res.text()
+        console.error(`Prediction Error: ${text}`)
+        throw new Error(`Request failed at ${res.status}`)
+      }
       const data = await res.json()
 
       const updatedAnalysis: SavedAnalysis = {
@@ -153,12 +167,16 @@ export default function AIPredictionsPage() {
         name: live.name || live.symbol,
         confidence: data.prediction.confidence,
         predictedPrice: data.prediction.predicted_price_7d,
-        predictedChange: ((data.prediction.predicted_price_7d - (live.price || 0)) / (live.price || 1)) * 100,
+        predictedChange:
+          ((data.prediction.predicted_price_7d - (live.price || 0)) /
+            (live.price || 1)) *
+          100,
         sentiment: data.prediction.trend,
-        rsi: data.prediction.rsi,
-        macd: data.prediction.macd,
+        rsi: data.indicators.rsi,
+        macd: String(data.indicators.macd),
         summary: data.prediction.summary,
-        date: 'Just now'
+        date: 'Just now',
+        currentPrice: live.price || 0,
       }
 
       setAnalysis(prev => {
@@ -225,7 +243,7 @@ export default function AIPredictionsPage() {
                 <p className="text-xs text-muted-foreground">No recent analyses. Search for a stock to begin.</p>
               </div>
             )}
-            
+
             {(loading && analysis.length === 0) && Array.from({ length: 3 }).map((_, i) => (
               <Card key={i} className="border-muted/60 bg-card/60">
                 <CardContent className="p-4 space-y-3">
@@ -280,15 +298,15 @@ export default function AIPredictionsPage() {
         <div className="lg:col-span-2">
           {!selected ? (
             <div className="h-full flex items-center justify-center border border-dashed rounded-3xl border-muted/60 bg-muted/5">
-               <div className="text-center space-y-4">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-                    <Brain className="w-8 h-8 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold">Select a Stock</h3>
-                    <p className="text-sm text-muted-foreground max-w-xs">Choose a stock from the left or search for a new one to see detailed AI predictions.</p>
-                  </div>
-               </div>
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                  <Brain className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Select a Stock</h3>
+                  <p className="text-sm text-muted-foreground max-w-xs">Choose a stock from the left or search for a new one to see detailed AI predictions.</p>
+                </div>
+              </div>
             </div>
           ) : (() => {
             const cfg = SENTIMENT_CONFIG[selected.sentiment as keyof typeof SENTIMENT_CONFIG] || SENTIMENT_CONFIG.Neutral
@@ -311,9 +329,9 @@ export default function AIPredictionsPage() {
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">{selected.name}</p>
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
+                      <Button
+                        size="sm"
+                        variant="outline"
                         className="text-xs font-medium shadow-sm"
                         onClick={handleReanalyze}
                         disabled={analysing}

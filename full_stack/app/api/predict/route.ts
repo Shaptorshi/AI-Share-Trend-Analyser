@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-
+import { API_BASE_URL } from '@/lib/api'
 
 interface PredictionResponse{
     symbol:string,
@@ -8,17 +8,17 @@ interface PredictionResponse{
     indicators:{
         rsi:number,
         macd: number
-        macdSignal: number
+        macd_signal: number
 
         ema_50: number
         ema_200: number
 
-        bb_Upper: number
-        bb_Mid: number
-        bb_Lower: number
+        bb_upper: number
+        bb_mid: number
+        bb_lower: number
 
-        stoch_K: number
-        stoch_D: number
+        stoch_k: number
+        stoch_d: number
 
         atr: number
         volume_ratio: number
@@ -34,8 +34,8 @@ interface PredictionResponse{
         range_high_7d: number
 
         confidence: number
-        trend: string
-        signalStrength: number
+        trend: "Bullish" | "Bearish" | "Neutral"
+        signal_strength: string
         summary: string
     }
 }
@@ -43,13 +43,18 @@ interface PredictionResponse{
 export async function POST(req: NextRequest) {
     const body = await req.json()
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/predict`, {
+    const res = await fetch(`${API_BASE_URL}/predict/`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
     })
+
+    if (!res.ok) {
+        return NextResponse.json({ error: "Backend error" }, { status: res.status })
+    }
+
     const data:PredictionResponse = await res.json()
     const { symbol, current_price, indicators: ind, prediction: p } = data
 
@@ -63,7 +68,7 @@ export async function POST(req: NextRequest) {
 
         await prisma.sharePrediction.create({
             data: {
-                symbol, currentPrice: current_price, predictedPrice: horizonMap[horizon].price, rangeLow: horizonMap[horizon].low, rangeHigh: horizonMap[horizon].high, confidence: p.confidence, horizon, trend: p.trend, signalStrength: p.signalStrength, summary: p.summary, rsi: ind.rsi, macd: ind.macd, macdSignal: ind.macdSignal, ema50: ind.ema_50, ema200: ind.ema_200, bbUpper: ind.bb_Upper, bbMid: ind.bb_Mid, bbLower: ind.bb_Lower, stochK: ind.stoch_K, stochD: ind.stoch_D, atr: ind.atr, volumeRatio: ind.volume_ratio
+                symbol, currentPrice: current_price, predictedPrice: horizonMap[horizon].price, rangeLow: horizonMap[horizon].low, rangeHigh: horizonMap[horizon].high, confidence: p.confidence, horizon, trend: p.trend, signalStrength: p.signal_strength, summary: p.summary, rsi: ind.rsi, macd: ind.macd, macdSignal: ind.macd_signal, ema50: ind.ema_50, ema200: ind.ema_200, bbUpper: ind.bb_upper, bbMid: ind.bb_mid, bbLower: ind.bb_lower, stochK: ind.stoch_k, stochD: ind.stoch_d, atr: ind.atr, volumeRatio: ind.volume_ratio
             }
         })
     }
