@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,14 +11,17 @@ import { Progress } from '@/components/ui/progress'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { fetchBatchStocks, StockInfo } from '@/lib/api'
 
-const HISTORY = [
-  { id: 1, symbol: "RELIANCE.NS", display: "RELIANCE", name: "Reliance Industries", sentiment: "Bullish", predictedChange: "+2.4%", confidence: 82, date: "Today, 2:14 PM", positive: true },
-  { id: 2, symbol: "TCS.NS", display: "TCS", name: "Tata Consultancy", sentiment: "Bullish", predictedChange: "+1.8%", confidence: 76, date: "Today, 9:32 AM", positive: true },
-  { id: 3, symbol: "BHARTIARTL.NS", display: "AIRTEL", name: "Bharti Airtel", sentiment: "Bearish", predictedChange: "-3.0%", confidence: 68, date: "Yesterday, 4:45 PM", positive: false },
-  { id: 4, symbol: "INFY.NS", display: "INFY", name: "Infosys", sentiment: "Bullish", predictedChange: "+4.2%", confidence: 79, date: "Yesterday, 11:20 AM", positive: true },
-  { id: 5, symbol: "HDFCBANK.NS", display: "HDFCBANK", name: "HDFC Bank", sentiment: "Neutral", predictedChange: "0.0%", confidence: 55, date: "2 days ago", positive: null },
-  { id: 6, symbol: "WIPRO.NS", display: "WIPRO", name: "Wipro", sentiment: "Bearish", predictedChange: "-1.5%", confidence: 62, date: "2 days ago", positive: false },
-]
+interface HistoryItem {
+  id: string;
+  symbol: string;
+  display: string;
+  name: string;
+  sentiment: string;
+  predictedChange: string;
+  confidence: number;
+  date: string;
+  positive: boolean;
+}
 
 const FILTERS = ["ALL", "Bullish", "Bearish", "Neutral"]
 
@@ -27,7 +31,7 @@ const SENTIMENT_CONFIG = {
   Neutral: { color: 'text-amber-600', bg: 'bg-amber-500/10 border-amber-500/20', dot: 'bg-amber-500', icon: Minus },
 }
 
-function getStats(data: typeof HISTORY) {
+function getStats(data: HistoryItem[]) {
   return {
     total: data.length,
     bullish: data.filter(f => f.sentiment === 'Bullish').length,
@@ -37,33 +41,77 @@ function getStats(data: typeof HISTORY) {
   }
 }
 
-
 export default function HistoryPage() {
   const [filter, setFilter] = useState("ALL")
+  const [history, setHistory] = useState<HistoryItem[]>([])
   const [stockData, setStockData] = useState<Record<string, StockInfo>>({})
   const [loading, setLoading] = useState(true)
 
-  const filteredData = filter === "ALL" ? HISTORY : HISTORY.filter((h) => h.sentiment === filter)
+  const filteredData = filter === "ALL" ? history : history.filter((h) => h.sentiment === filter)
   const stats = getStats(filteredData)
 
   useEffect(() => {
     async function loadData() {
-        setLoading(true)
-        const symbols = Array.from(new Set(HISTORY.map(s => s.symbol)))
-        const data = await fetchBatchStocks(symbols)
-        const dataMap: Record<string, StockInfo> = {}
-        data.forEach(info => { dataMap[info.symbol] = info })
-        setStockData(dataMap)
-        setLoading(false)
+      setLoading(true)
+      try {
+        const res = await fetch('/api/history')
+        if (res.ok) {
+          const dbHistory = await res.json()
+
+          const formattedHistory: HistoryItem[] = dbHistory.map((item: any) => {
+            const pctChange = ((item.predictedPrice - item.currentPrice) / item.currentPrice) * 100
+            const isPositive = pctChange >= 0
+
+            const dateObj = new Date(item.createdAt)
+            const dateStr = new Intl.DateTimeFormat('en-US', {
+              month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric'
+            }).format(dateObj)
+
+            return {
+              id: item.id,
+              symbol: item.symbol,
+              display: item.symbol.replace(".NS", ""),
+              name: item.symbol.replace(".NS", ""), // Will update this with fetchBatchStocks data later if available
+              sentiment: item.trend,
+              predictedChange: `${isPositive ? '+' : ''}${pctChange.toFixed(1)}%`,
+              confidence: Math.round(item.confidence),
+              date: dateStr,
+              positive: isPositive
+            }
+          })
+
+          setHistory(formattedHistory)
+
+          if (formattedHistory.length > 0) {
+            const symbols = Array.from(new Set(formattedHistory.map(s => s.symbol)))
+            const data = await fetchBatchStocks(symbols)
+            const dataMap: Record<string, StockInfo> = {}
+            data.forEach(info => { dataMap[info.symbol] = info })
+            setStockData(dataMap)
+
+            // Update names if available
+            setHistory(prev => prev.map(h => ({
+              ...h,
+              name: dataMap[h.symbol]?.name || h.name
+            })))
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load history:", error)
+      }
+      setLoading(false)
     }
     loadData()
   }, [])
-
+  const router = useRouter()
+  const handleViewStock = (symbol: string) => {
+    router.push(`/dashboard/stock/${encodeURIComponent(symbol)}`)
+  }
   return (
     <main className='border h-screen p-6 m-5 rounded-2xl bg-background/50 backdrop-blur-xl shadow-sm flex flex-col gap-8 overflow-y-auto'>
       <div>
-         <h1 className="text-2xl font-bold tracking-tight mb-1">Analysis History</h1>
-         <p className="text-sm text-muted-foreground">Past predictions and their real-time performance</p>
+        <h1 className="text-2xl font-bold tracking-tight mb-1">Analysis History</h1>
+        <p className="text-sm text-muted-foreground">Past predictions and their real-time performance</p>
       </div>
 
       <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4'>
@@ -89,7 +137,7 @@ export default function HistoryPage() {
         <CardHeader className='pb-4 pt-6 px-6 border-b border-muted/30 bg-muted/10'>
           <div className='flex items-center justify-between gap-3'>
             <CardTitle className='flex items-center gap-2 text-lg'>
-              <Brain className="text-primary w-5 h-5"/> Prediction Log
+              <Brain className="text-primary w-5 h-5" /> Prediction Log
             </CardTitle>
             <div>
               <div className='flex items-center gap-3'>
@@ -116,12 +164,12 @@ export default function HistoryPage() {
                 <TableHead className='text-right text-xs uppercase tracking-wider'>Predicted</TableHead>
                 <TableHead className='text-right'>
                   <Button variant="ghost" className='flex items-center gap-1 ml-auto text-[10px] uppercase tracking-wider font-semibold px-2 hover:bg-muted/50'>
-                    Confidence <ArrowUpDown className="w-3 h-3 ml-1"/>
+                    Confidence <ArrowUpDown className="w-3 h-3 ml-1" />
                   </Button>
                 </TableHead>
                 <TableHead>
                   <Button variant="ghost" className='flex items-center gap-1 ml-auto text-[10px] uppercase tracking-wider font-semibold px-2 hover:bg-muted/50'>
-                    Date <ArrowUpDown className="w-3 h-3 ml-1"/>
+                    Date <ArrowUpDown className="w-3 h-3 ml-1" />
                   </Button>
                 </TableHead>
                 <TableHead className='text-right pr-6 text-xs uppercase tracking-wider'>Action</TableHead>
@@ -130,7 +178,7 @@ export default function HistoryPage() {
 
             <TableBody>
               {filteredData.map((item, idx) => {
-                const configure = SENTIMENT_CONFIG[item.sentiment as keyof typeof SENTIMENT_CONFIG]
+                const configure = SENTIMENT_CONFIG[item.sentiment as keyof typeof SENTIMENT_CONFIG] || SENTIMENT_CONFIG.Neutral
                 const Icon = configure.icon
                 const info = stockData[item.symbol]
 
@@ -151,24 +199,24 @@ export default function HistoryPage() {
                     </TableCell>
 
                     <TableCell className='text-right'>
-                      {loading ? (
-                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />
+                      {loading && !info ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />
                       ) : (
-                         <span className="font-mono font-medium">₹{info?.price?.toLocaleString("en-IN") || "-"}</span>
+                        <span className="font-mono font-medium">₹{info?.price?.toLocaleString("en-IN") || "-"}</span>
                       )}
                     </TableCell>
 
                     <TableCell className='text-right'>
                       <span className={`font-mono font-medium ${item.positive === true ? 'text-green-600' : item.positive === false ? 'text-red-500' : 'text-amber-600'}`}>
-                         {item.predictedChange}
+                        {item.predictedChange}
                       </span>
                     </TableCell>
 
                     <TableCell className='text-right'>
                       <div className="w-24 ml-auto">
                         <div className="flex justify-between items-center mb-1.5 text-xs">
-                           <span></span>
-                           <span className="font-mono font-medium">{item.confidence}%</span>
+                          <span></span>
+                          <span className="font-mono font-medium">{item.confidence}%</span>
                         </div>
                         <Progress value={item.confidence} className="h-1.5 bg-muted/50" />
                       </div>
@@ -179,7 +227,7 @@ export default function HistoryPage() {
                     </TableCell>
 
                     <TableCell className='text-right pr-6'>
-                      <Button size={`sm`} variant={`ghost`} className='text-xs text-primary hover:text-primary hover:bg-primary/10'>
+                      <Button size={`sm`} variant={`ghost`} className='text-xs text-primary hover:text-primary hover:bg-primary/10' onClick={() => handleViewStock(item.symbol)}>
                         View Details
                       </Button>
                     </TableCell>
@@ -188,11 +236,11 @@ export default function HistoryPage() {
               })}
             </TableBody>
           </Table>
-          
-          {filteredData.length === 0 && (
-             <div className="p-10 text-center text-muted-foreground">
-                 No analyses match the current filter.
-             </div>
+
+          {!loading && filteredData.length === 0 && (
+            <div className="p-10 text-center text-muted-foreground">
+              No analyses match the current filter.
+            </div>
           )}
         </CardContent>
       </Card>

@@ -14,11 +14,6 @@ const navItems = [
     icon:LayoutDashboard
   },
   {
-    label:`My Portfolio`,
-    href:`/dashboard/portfolio`,
-    icon:Briefcase
-  },
-  {
     label:`Explore`,
     href:`/dashboard/explore`,
     icon:Search
@@ -47,7 +42,7 @@ const Sidebar1 = ({ children }: { children: React.ReactNode }) => {
       <Sidebar>,
         <SidebarHeader>
           <h2 className='font-bold text-xl text-center p-3'>
-            TradeEdge
+            TrendAI Analyzer
           </h2>
         </SidebarHeader>
         <Separator/>

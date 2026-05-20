@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from typing import List
+# from typing import List
 from ai_service.services.stock_services import get_stock_info, get_stock_history, get_batch_stock_info, search_stocks
 
 router = APIRouter()

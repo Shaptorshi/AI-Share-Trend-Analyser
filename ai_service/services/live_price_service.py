@@ -14,6 +14,7 @@ class LivePriceManager:
         self._yf_ws = None
         self._listen_task = None
         self._running = False
+        self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -46,13 +47,21 @@ class LivePriceManager:
 
     async def _ensure_yf_ws(self, symbols: list[str]):
         """Start or update the Yahoo Finance WebSocket connection."""
-        if self._yf_ws is None:
-            self._yf_ws = yf.AsyncWebSocket(verbose=False)
-            await self._yf_ws.__aenter__()
-            self._running = True
-            self._listen_task = asyncio.create_task(self._listen_loop())
+        async with self._lock:
+            if self._yf_ws is None:
+                self._yf_ws = yf.AsyncWebSocket(verbose=False)
+                await self._yf_ws.__aenter__()
+                self._running = True
+                self._listen_task = asyncio.create_task(self._listen_loop())
 
-        await self._yf_ws.subscribe(symbols)
+            await self._yf_ws.subscribe(symbols)
+
+    async def _send_to_client(self, ws: WebSocket, payload: str, disconnected: list):
+        try:
+            # Use a timeout to prevent slow/dead clients from blocking
+            await asyncio.wait_for(ws.send_text(payload), timeout=2.0)
+        except Exception:
+            disconnected.append(ws)
 
     async def _listen_loop(self):
         """Listen to Yahoo Finance WebSocket and forward to subscribed clients."""
@@ -77,14 +86,15 @@ class LivePriceManager:
                     "timestamp": timestamp,
                 })
 
-                # Send to all clients subscribed to this symbol
+                # Send to all clients subscribed to this symbol asynchronously
                 subscribers = self.subscriptions.get(symbol, set())
                 disconnected = []
+                tasks = []
                 for ws in subscribers:
-                    try:
-                        await ws.send_text(payload)
-                    except Exception:
-                        disconnected.append(ws)
+                    tasks.append(asyncio.create_task(self._send_to_client(ws, payload, disconnected)))
+                
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
 
                 for ws in disconnected:
                     self.disconnect(ws)
@@ -96,17 +106,18 @@ class LivePriceManager:
 
     async def _stop_yf_ws(self):
         """Close the Yahoo Finance WebSocket."""
-        if self._yf_ws:
-            try:
-                await self._yf_ws.close()
-            except Exception:
-                pass
-            self._yf_ws = None
-            self._running = False
+        async with self._lock:
+            if self._yf_ws:
+                try:
+                    await self._yf_ws.close()
+                except Exception:
+                    pass
+                self._yf_ws = None
+                self._running = False
 
-        if self._listen_task:
-            self._listen_task.cancel()
-            self._listen_task = None
+            if self._listen_task:
+                self._listen_task.cancel()
+                self._listen_task = None
 
 
 # Singleton manager

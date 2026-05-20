@@ -14,6 +14,8 @@ import { useRouter } from 'next/navigation'
 import { useSearchParams } from 'next/navigation'
 import { fetchStockInfo } from '@/lib/api'
 
+import { Suspense } from 'react'
+
 export interface SavedAnalysis {
   symbol: string,
   display: string,
@@ -53,7 +55,7 @@ function ConfidenceBar({ value, sentiment }: { value: number; sentiment: string 
   )
 }
 
-export default function AIPredictionsPage() {
+function AIPredictionsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const urlSymbol = searchParams.get('symbol')
@@ -419,5 +421,17 @@ export default function AIPredictionsPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function AIPredictionsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    }>
+      <AIPredictionsContent />
+    </Suspense>
   )
 }

@@ -13,7 +13,7 @@ const Navbar = () => {
   return (
     <div className="sticky">
       <div className="flex justify-between p-5 items-center">
-        <h1 className="text-xl font-bold">TradeEdge</h1>
+        <h1 className="text-xl font-bold">TrendAI</h1>
         <NavigationMenu>
           <NavigationMenuList>
 
