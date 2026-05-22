@@ -1,6 +1,5 @@
 import Navbar from '@/app/components/Navbar'
 import CTA from '@/app/components/CTA'
-import ShareCard from './components/ShareCard';
 import Features from './components/features'
 import Working from './components/working'
 import Insights from './components/Insights'
@@ -12,7 +11,6 @@ export default function Home() {
     <div id=''>
       <Navbar />
       <CTA />
-      <ShareCard />
       <Features />
       <Working />
       <Insights />
