@@ -1,4 +1,4 @@
-export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://ai-share-trend-analyser-1.onrender.com";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
 export interface StockInfo {
     prices_30d: number[];
