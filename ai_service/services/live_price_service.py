@@ -75,13 +75,24 @@ class LivePriceManager:
                 volume = msg.get("dayVolume", None)
                 market_hours = msg.get("marketHours", None)
 
+                import math
+                
+                def safe_float(val):
+                    if val is None:
+                        return None
+                    try:
+                        f = float(val)
+                        return None if math.isnan(f) else f
+                    except (ValueError, TypeError):
+                        return None
+
                 payload = json.dumps({
                     "type": "price_update",
                     "symbol": symbol,
-                    "price": price,
-                    "change": change,
-                    "changePercent": change_percent,
-                    "volume": volume,
+                    "price": safe_float(price),
+                    "change": safe_float(change),
+                    "changePercent": safe_float(change_percent),
+                    "volume": safe_float(volume),
                     "marketHours": market_hours,
                     "timestamp": timestamp,
                 })
@@ -103,10 +114,16 @@ class LivePriceManager:
         except Exception as e:
             print(f"[LivePriceManager] Yahoo WS listen error: {e}")
             self._running = False
+            self._yf_ws = None
+            self._listen_task = None
 
     async def _stop_yf_ws(self):
         """Close the Yahoo Finance WebSocket."""
         async with self._lock:
+            # Check again after acquiring lock to prevent race conditions
+            if self.active_connections:
+                return
+                
             if self._yf_ws:
                 try:
                     await self._yf_ws.close()

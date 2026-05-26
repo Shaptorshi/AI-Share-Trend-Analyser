@@ -16,9 +16,13 @@ model User {
   name      String
   email     String   @unique
   password  String
-  createdAt DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  watchLists WatchList[]
+  defaultHorizon String   @default("7d")
+  riskTolerance  String   @default("Moderate")
+  favoriteSector String   @default("Tech")
+
+  watchLists  WatchList[]
   predictions SharePrediction[]
 }
 
@@ -73,7 +77,7 @@ model WatchList {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  symbol String @db.VarChar(10)
+  symbol String @db.VarChar(50)
   name   String @db.VarChar(100)
   sector String @db.VarChar(50)
 

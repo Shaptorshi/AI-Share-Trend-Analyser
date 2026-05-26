@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Sidebar, SidebarHeader, SidebarContent, SidebarFooter, SidebarProvider, } from '@/components/ui/sidebar'
-import { LayoutDashboard, Search, Star, Brain, Briefcase, Clock } from 'lucide-react'
+import { LayoutDashboard, Search, Star, Brain, Briefcase, Clock, Settings } from 'lucide-react'
 import Link from 'next/link'
 import {Separator} from '@/components/ui/separator'
 import { usePathname } from 'next/navigation' 
@@ -32,6 +32,11 @@ const navItems = [
     label:`History`,
     href:`/dashboard/history`,
     icon:Clock
+  },
+  {
+    label:`Settings`,
+    href:`/dashboard/settings`,
+    icon:Settings
   }
 ]
 
