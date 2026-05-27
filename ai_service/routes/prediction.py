@@ -1,10 +1,15 @@
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from ai_service.services.prediction_service import PredictionInput,compute_indicators
-import ollama,json
+from groq import AsyncGroq
+import json
+import os
 
 router = APIRouter(prefix="/predict",tags=["prediction"])
-client = ollama.AsyncClient()
+
+groq_client = AsyncGroq(
+    api_key=os.getenv("GROQ_API_KEY")
+)
 
 PREDICTION_PROMPT = """
 You are a financial analyst AI. Analyze the following stock data and return a JSON prediction.
@@ -28,7 +33,7 @@ Return ONLY valid JSON with this exact structure:
   "predicted_price_3m": number,
   "range_low_7d": number,
   "range_high_7d": number,
-  "confidence": number (0-100),
+  "confidence": number,
   "trend": "Bullish" | "Bearish" | "Neutral",
   "summary": "2-3 sentence analysis",
   "signal_strength": "Strong" | "Moderate" | "Weak"
@@ -60,25 +65,32 @@ async def predict(data:PredictionInput):
     )
     
     try:
-        response = await client.chat(
-            model="llama3.2",
-            messages=[{"role":"user","content":prompt}],
-            format="json"
+        response = await groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": "You are a financial analyst AI. Return valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=700,
+            response_format={"type": "json_object"}
         )
-        prediction = json.loads(response["message"]["content"])
-        print(f"Ollama prediction: {prediction}")
+        
+        content = response.choices[0].message.content
+        prediction = json.loads(content)
+        print(f"Groq prediction: {prediction}")
     except Exception as e:
-        print(f"Ollama connection failed: {e}. Using fallback mock prediction.")
+        print(f"Groq connection failed: {e}. Using fallback mock prediction.")
         prediction = {
-            "predicted_price_7d": data.current_price * 1.02,
-            "predicted_price_14d": data.current_price * 1.03,
-            "predicted_price_1m": data.current_price * 1.05,
-            "predicted_price_3m": data.current_price * 1.10,
-            "range_low_7d": data.current_price * 0.98,
-            "range_high_7d": data.current_price * 1.05,
+            "predicted_price_7d": round(data.current_price * 1.02, 2),
+            "predicted_price_14d": round(data.current_price * 1.03, 2),
+            "predicted_price_1m": round(data.current_price * 1.05, 2),
+            "predicted_price_3m": round(data.current_price * 1.10, 2),
+            "range_low_7d": round(data.current_price * 0.98, 2),
+            "range_high_7d": round(data.current_price * 1.05, 2),
             "confidence": 75,
             "trend": "Neutral",
-            "summary": "This is a fallback mock prediction because the Ollama AI service is not running locally. Please install Ollama and the llama3.2 model to see real AI predictions.",
+            "summary": "This is a fallback mock prediction because the Groq API request failed. Please check your GROQ_API_KEY.",
             "signal_strength": "Moderate"
         }
         
@@ -95,13 +107,21 @@ async def predict_stream(data:PredictionInput):
     prompt = f"Analyze {data.symbol} at {data.current_price} with indicators: {indicators}"
     
     async def gen():
-        stream = await client.chat(
-            model="llama3.2",
-            messages=[{"role":"user","content":prompt}],
-            stream=True
-        )
+        try:
+            stream = await groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a financial analyst AI."},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=True
+            )
+            
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content or ""
+                if delta:
+                    yield f"data: {delta}\n\n"
+        except Exception as e:
+            yield f"data: Error connecting to Groq API: {str(e)}\n\n"
         
-        async for chunk in stream:
-            yield f"data: {chunk['message']['content']}\n\n"
-        
-    return StreamingResponse(gen(),media_type="text/event-stream")
+    return StreamingResponse(gen(), media_type="text/event-stream")
