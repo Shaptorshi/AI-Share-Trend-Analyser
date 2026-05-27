@@ -1,10 +1,15 @@
 import yfinance as yf
 from concurrent.futures import ThreadPoolExecutor
 import math
+from cachetools import cached, TTLCache
 
 executor = ThreadPoolExecutor(max_workers=10)
 
+# Cache up to 100 stocks for 60 seconds to prevent slow repeated Yahoo Finance calls
+stock_cache = TTLCache(maxsize=100, ttl=60)
+history_cache = TTLCache(maxsize=100, ttl=180) # History rarely changes, cache for 3 mins
 
+@cached(cache=stock_cache)
 def fetch_single_stock(symbol: str):
     try:
         stock = yf.Ticker(symbol)
@@ -112,6 +117,7 @@ def get_batch_stock_info(symbols: list[str]):
         ]
 
 
+@cached(cache=history_cache)
 def get_stock_history(symbol: str, period="1mo", interval="1d"):
     try:
         stock = yf.Ticker(symbol)
