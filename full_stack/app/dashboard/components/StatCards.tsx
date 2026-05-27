@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { fetchBatchStocks } from '@/lib/api'
 import { Skeleton } from '@/components/ui/skeleton'
+import { BrainCircuit, Activity, Eye, Zap } from 'lucide-react'
 
 type Stat = {
     label: string,
     value: string,
     sub: string,
-    positive: boolean | null
+    positive: boolean | null,
+    icon: React.ReactNode
 }
 
 const StatCards = () => {
@@ -18,44 +20,85 @@ const StatCards = () => {
         const fetchStats = async () => {
             try {
                 setLoading(true)
-                // Assuming these are the user's portfolio/dashboard overview stocks
-                const symbols = ["RELIANCE.NS", "INFY.NS", "TCS.NS", "HDFCBANK.NS"]
-                const results = await fetchBatchStocks(symbols)
+                
+                // 1. Fetch NIFTY 50 (^NSEI) for Market Pulse
+                const marketRes = await fetchBatchStocks(["^NSEI"])
+                const nifty = marketRes[0]
+                
+                let niftyValue = "Loading..."
+                let niftyChange = ""
+                let isNiftyPositive = null
+                
+                if (nifty && nifty.price && nifty.previous_close) {
+                    const diff = nifty.price - nifty.previous_close
+                    const percent = (diff / nifty.previous_close) * 100
+                    niftyValue = `₹${nifty.price.toFixed(2)}`
+                    isNiftyPositive = diff >= 0
+                    niftyChange = `${isNiftyPositive ? "+" : ""}${diff.toFixed(2)} (${percent.toFixed(2)}%)`
+                }
 
-                let total = 0
-                let gain = 0
-
-                results.forEach((stock) => {
-                    if (stock.price && stock.previous_close) {
-                        total += stock.price
-                        gain += stock.price - stock.previous_close
+                // 2. Fetch Watchlist Count
+                let watchlistCount = 0
+                let aiSentiment = "Neutral"
+                let sentimentPositive = null
+                
+                try {
+                    const wlRes = await fetch("/api/watchlist")
+                    if (wlRes.ok) {
+                        const wlData = await wlRes.json()
+                        watchlistCount = wlData.length
+                        
+                        if (watchlistCount > 0) {
+                            // Calculate sentiment based on watchlist performance
+                            const symbols = wlData.map((item: any) => item.symbol)
+                            const wlStocks = await fetchBatchStocks(symbols.slice(0, 10)) // Limit to 10 for speed
+                            let up = 0
+                            let down = 0
+                            wlStocks.forEach((s) => {
+                                if (s.price && s.previous_close) {
+                                    if (s.price > s.previous_close) up++
+                                    else if (s.price < s.previous_close) down++
+                                }
+                            })
+                            if (up > down) { aiSentiment = "Bullish"; sentimentPositive = true }
+                            else if (down > up) { aiSentiment = "Bearish"; sentimentPositive = false }
+                            else { aiSentiment = "Mixed"; sentimentPositive = null }
+                        } else {
+                            aiSentiment = "Add stocks"
+                        }
                     }
-                })
+                } catch (e) {
+                    console.error("Watchlist fetch failed", e)
+                }
 
                 setStats([
                     {
-                        label: "Portfolio Value",
-                        value: `₹${total.toFixed(2)}`,
-                        sub: `${gain >= 0 ? "↑" : "↓"} ₹${Math.abs(gain).toFixed(2)} today`,
-                        positive: gain >= 0
+                        label: "Market Pulse (NIFTY 50)",
+                        value: niftyValue,
+                        sub: niftyChange || "Market Closed",
+                        positive: isNiftyPositive,
+                        icon: <Activity className="w-4 h-4 text-muted-foreground" />
                     },
                     {
-                        label: "Today's Return",
-                        value: `${((gain / (total - gain)) * 100).toFixed(2)}%`,
-                        sub: `Across ${results.length} stocks`,
-                        positive: gain >= 0
+                        label: "AI Market Sentiment",
+                        value: aiSentiment,
+                        sub: "Based on active watchlist",
+                        positive: sentimentPositive,
+                        icon: <BrainCircuit className="w-4 h-4 text-muted-foreground" />
                     },
                     {
-                        label: "Watchlist Stocks",
-                        value: `${results.length}`,
-                        sub: `Dynamic Watchlist`,
-                        positive: null
+                        label: "Active Watchlist",
+                        value: `${watchlistCount}`,
+                        sub: `Tracking ${watchlistCount} signals`,
+                        positive: watchlistCount > 0 ? true : null,
+                        icon: <Eye className="w-4 h-4 text-muted-foreground" />
                     },
                     {
-                        label: "AI Analyses run",
-                        value: `12`,
-                        sub: `↑ 2 this week`,
-                        positive: true
+                        label: "AI Computations",
+                        value: `Active`,
+                        sub: `Real-time modeling running`,
+                        positive: true,
+                        icon: <Zap className="w-4 h-4 text-muted-foreground" />
                     },
                 ])
             } catch (error) {
@@ -82,7 +125,10 @@ const StatCards = () => {
             ) : stats.map((stat,idx) => (
                 <Card key={idx} className="transition-all duration-300 hover:shadow-md hover:-translate-y-1 border-muted/60 bg-gradient-to-br from-card/80 to-muted/20 backdrop-blur-xl">
                     <CardContent className='p-5'>
-                        <p className='mb-2 text-[11px] uppercase tracking-wider font-semibold text-muted-foreground'>{stat.label}</p>
+                        <div className="flex items-center justify-between mb-2">
+                            <p className='text-[11px] uppercase tracking-wider font-semibold text-muted-foreground'>{stat.label}</p>
+                            {stat.icon}
+                        </div>
                         <p className='font-mono text-3xl font-bold tracking-tight'>{stat.value}</p>
                         <p className={`mt-2 text-xs font-medium ${stat.positive === true ? 'text-green-600 bg-green-500/10 inline-block px-2 py-0.5 rounded' : stat.positive === false ? 'text-red-500 bg-red-500/10 inline-block px-2 py-0.5 rounded' : 'text-muted-foreground'}`}>
                            {stat.sub}

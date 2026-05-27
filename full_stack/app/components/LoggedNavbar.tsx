@@ -51,16 +51,16 @@ const LoggedNavbar = () => {
                   </Avatar>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" className='w-full'>
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                  <DropdownMenuItem>Name:{session?.user?.name}</DropdownMenuItem>
-                  <DropdownMenuItem>Profile</DropdownMenuItem>
-                  <DropdownMenuItem>Settings</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => signOut({ callbackUrl: `/login` })} className='text-red-500 cursor-pointer'>
-                    Logout
+                <DropdownMenuContent align="end" className='w-56'>
+                  <div className="flex flex-col space-y-1 p-3 border-b border-muted/50 mb-1">
+                    <p className="text-sm font-medium leading-none">{session?.user?.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground mt-1">{session?.user?.email}</p>
+                  </div>
+                  <DropdownMenuItem onClick={() => signOut({ callbackUrl: `/login` })} className='text-red-500 cursor-pointer font-medium p-3 mx-1 mb-1 rounded-md focus:bg-red-500/10 focus:text-red-500'>
+                    Log out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
-              </DropdownMenu>         
+              </DropdownMenu>
 
         </div>
       </div>
