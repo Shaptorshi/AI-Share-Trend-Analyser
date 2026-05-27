@@ -8,7 +8,7 @@ import os
 router = APIRouter(prefix="/predict",tags=["prediction"])
 
 groq_client = AsyncGroq(
-    api_key=os.getenv("GROQ_API_KEY")
+    api_key=os.getenv("GROQ_API_KEY", "missing_key")
 )
 
 PREDICTION_PROMPT = """
