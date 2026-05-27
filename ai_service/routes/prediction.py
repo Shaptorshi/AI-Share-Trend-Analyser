@@ -80,7 +80,8 @@ async def predict(data:PredictionInput):
         prediction = json.loads(content)
         print(f"Groq prediction: {prediction}")
     except Exception as e:
-        print(f"Groq connection failed: {e}. Using fallback mock prediction.")
+        error_msg = str(e)
+        print(f"Groq connection failed: {error_msg}. Using fallback mock prediction.")
         prediction = {
             "predicted_price_7d": round(data.current_price * 1.02, 2),
             "predicted_price_14d": round(data.current_price * 1.03, 2),
@@ -90,7 +91,7 @@ async def predict(data:PredictionInput):
             "range_high_7d": round(data.current_price * 1.05, 2),
             "confidence": 75,
             "trend": "Neutral",
-            "summary": "This is a fallback mock prediction because the Groq API request failed. Please check your GROQ_API_KEY.",
+            "summary": f"Fallback mock prediction. Groq API failed with error: {error_msg}",
             "signal_strength": "Moderate"
         }
         
